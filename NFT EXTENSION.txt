@@ -1,0 +1,111 @@
+) Write an NFT Market Place Smart Contract which
+allows users to buy the NFT and list their already-minted
+NFT also the owner of the marketplace has to get a
+commission whenever an NFT is sold
+
+
+To deploy and interact with this contract using Remix IDE:
+
+Open the Remix IDE (https://remix.ethereum.org).
+Create a new file and name it "NFTMarketplace.sol".
+Copy and paste the above code into "NFTMarketplace.sol".
+Import the required OpenZeppelin contracts by adding the following import statements at the top of the file:
+solidity
+Copy code
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+Ensure that the Solidity compiler version is set to at least 0.8.0.
+Install the necessary dependencies by going to the Remix IDE's "Solidity Compiler" tab, scrolling down to the "Import
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+contract NFTMarketplace is ERC721 {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIds;
+
+    address public owner;
+    uint256 public commissionPercentage;
+
+    struct NFT {
+        uint256 tokenId;
+        address payable owner;
+        uint256 price;
+        bool listed;
+    }
+
+    mapping(uint256 => NFT) private nfts;
+
+    event NFTListed(uint256 indexed tokenId, address indexed owner, uint256 price);
+    event NFTSold(uint256 indexed tokenId, address indexed buyer, address indexed seller, uint256 price);
+
+    constructor() ERC721("NFTMarketplace", "NFTM") {
+        owner = msg.sender;
+        commissionPercentage = 5; // 5% commission by default
+    }
+
+    function listNFT(uint256 price) external {
+        require(balanceOf(msg.sender) > 0, "You do not own any NFTs");
+        uint256 tokenId = tokenOfOwnerByIndex(msg.sender, 0);
+        approve(address(this), tokenId);
+        nfts[tokenId] = NFT(tokenId, payable(msg.sender), price, true);
+        emit NFTListed(tokenId, msg.sender, price);
+    }
+
+    function buyNFT(uint256 tokenId) external payable {
+        NFT storage nft = nfts[tokenId];
+        require(nft.listed, "NFT is not listed for sale");
+        require(msg.value >= nft.price, "Insufficient funds");
+
+        address payable seller = nft.owner;
+        address payable buyer = payable(msg.sender);
+
+        // Transfer ownership
+        transferFrom(seller, buyer, tokenId);
+
+        // Update NFT struct
+        nft.owner = buyer;
+        nft.price = 0;
+        nft.listed = false;
+
+        // Calculate and send commission to the marketplace owner
+        uint256 commissionAmount = (msg.value * commissionPercentage) / 100;
+        uint256 remainingAmount = msg.value - commissionAmount;
+        owner.transfer(commissionAmount);
+
+        // Send remaining amount to the seller
+        seller.transfer(remainingAmount);
+
+        emit NFTSold(tokenId, buyer, seller, msg.value);
+    }
+
+    function setCommissionPercentage(uint256 percentage) external onlyOwner {
+        require(percentage <= 100, "Commission percentage must be between 0 and 100");
+        commissionPercentage = percentage;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the marketplace owner can call this function");
+        _;
+    }
+}
+T
+
+
+
